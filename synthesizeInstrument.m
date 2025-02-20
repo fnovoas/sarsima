@@ -1,22 +1,11 @@
 function synthesizeInstrument()
     global base_datos;
+    global instrumento_sintetizado;  % Declarar la variable global dentro de la función
 
-    % Frecuencia fundamental fija por defecto
-    defaultFreq = 440;
+    % Usar la frecuencia fundamental predeterminada de 440 Hz
+    fundamentalFreq = 440;
 
-    % Solicitar al usuario la frecuencia deseada inicial
-    userFreq = input('Ingrese la frecuencia deseada para el sonido (presione Enter para usar 440 Hz): ', 's');
-    if isempty(userFreq)
-        fundamentalFreq = defaultFreq;
-    else
-        fundamentalFreq = str2double(userFreq);
-        if isnan(fundamentalFreq) || fundamentalFreq <= 0
-            disp('Entrada no válida. Se utilizará la frecuencia predeterminada de 440 Hz.');
-            fundamentalFreq = defaultFreq;
-        end
-    end
-
-    % Solicitar al usuario los porcentajes de los armónicos
+    % Solicitar al usuario los porcentajes de intensidad para los 15 armónicos restantes (hasta 10 cifras decimales)
     harmonicIntensities = zeros(1, 16);
     harmonicIntensities(1) = 100.0000000000; % Intensidad fija para el primer armónico
     disp('Ingrese los porcentajes de intensidad para los 15 armónicos restantes (hasta 10 cifras decimales):');
@@ -35,7 +24,7 @@ function synthesizeInstrument()
         end
     end
 
-    % Solicitar el nombre del instrumento
+    % Solicitar el nombre del nuevo instrumento
     instrumentName = input('Ingrese el nombre del nuevo instrumento: ', 's');
 
     % Crear vector de frecuencias de los armónicos
@@ -44,25 +33,11 @@ function synthesizeInstrument()
     % Guardar en la base de datos
     saveToDatabase(instrumentName, fundamentalFreq, harmonics, harmonicIntensities);
 
-    % Generar y reproducir el sonido inicial
-    disp('Reproduciendo el sonido sintetizado...');
-    generateSound(fundamentalFreq, harmonics, harmonicIntensities);
+    % Asignar los valores del instrumento sintetizado a la variable global
+    instrumento_sintetizado.fundamentalFreq = fundamentalFreq;
+    instrumento_sintetizado.harmonicIntensities = harmonicIntensities;
 
-    % Bucle para reproducir el sonido con diferentes frecuencias
-    while true
-        userFreq = input('Ingrese otra frecuencia para reproducir el sonido (Oprime Enter para salir): ', 's');
-        if isempty(userFreq)
-            disp('Saliendo del programa.');
-            break;
-        else
-            fundamentalFreq = str2double(userFreq);
-            if isnan(fundamentalFreq) || fundamentalFreq <= 0
-                disp('Entrada no válida. Intente nuevamente.');
-            else
-                harmonics = fundamentalFreq * (1:16);
-                disp('Reproduciendo el sonido sintetizado con la nueva frecuencia...');
-                generateSound(fundamentalFreq, harmonics, harmonicIntensities);
-            end
-        end
-    end
+    % Lanzar directamente el piano con el instrumento sintetizado
+    disp('Lanzando el piano con el instrumento sintetizado...');
+    piano;
 end
