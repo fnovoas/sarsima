@@ -34,29 +34,48 @@ notas_activas = {};
 
 % Asignar los callbacks
 fig.KeyPressFcn = @(src, event) tocar_piano(src, event, mapa_teclas, notas, fs, sonidos_activos, notas_activas, ax, posiciones_teclas);
-fig.KeyReleaseFcn = @(src, event) detener_piano(src, event, sonidos_activos, notas_activas, mapa_teclas, ax, posiciones_teclas);
+fig.KeyReleaseFcn = @(src, event) detener_piano(src, event, sonidos_activos, notas_activas, mapa_teclas, notas, ax, posiciones_teclas);
 
 % Función para generar tonos
 function tono = generar_nota_sintetizada(frecuencia, duracion, fs)
     global instrumento_sintetizado;
-    % Si no se ha sintetizado un instrumento, usar tono puro
+    t = linspace(0, duracion, round(fs * duracion));
+    
     if isempty(instrumento_sintetizado)
-        t = linspace(0, duracion, round(fs * duracion));
+        % Si no se ha sintetizado un instrumento, generar una onda senoidal simple
         tono = sin(2 * pi * frecuencia * t);
     else
-        t = linspace(0, duracion, round(fs * duracion));
+        % Generar tono a partir de los armónicos del instrumento sintetizado
         tono = zeros(size(t));
-        % Usar la misma cantidad de armónicos que se definieron (por ejemplo, 16)
         numArm = length(instrumento_sintetizado.harmonicIntensities);
         for k = 1:numArm
-            % Cada armónico se escala según la intensidad almacenada.
-            % Se calcula el armónico relativo para la nota actual: k * frecuencia.
             amplitude = instrumento_sintetizado.harmonicIntensities(k) / 100;
             tono = tono + amplitude * sin(2 * pi * (frecuencia * k) * t);
         end
-        % Normalizar la señal
-        tono = tono / max(abs(tono));
     end
+    
+    % --- Aplicar la envolvente ADSR ---
+    % Si el instrumento sintetizado tiene parámetros ADSR, usarlos; de lo contrario, se usan valores por defecto.
+    if ~isempty(instrumento_sintetizado) && isfield(instrumento_sintetizado, 'envelope')
+        ADSR = instrumento_sintetizado.envelope;  % Se espera un vector [A, D, S, R]
+        A = ADSR(1);
+        D = ADSR(2);
+        S = ADSR(3);
+        R = ADSR(4);
+    else
+        % Valores por defecto
+        A = 0.1;  % Ataque
+        D = 0.2;  % Decaimiento
+        S = 0.7;  % Sostenimiento
+        R = 0.5;  % Liberación
+    end
+    
+    envelope = createADSR(A, D, S, R, duracion, fs);
+    tono = tono .* envelope;
+    % ----------------------------------
+    
+    % Normalizar la señal
+    tono = tono / max(abs(tono));
 end
 
 function dibujar_piano(ax, posiciones, notas_activas)
@@ -105,7 +124,8 @@ function tocar_piano(~, event, mapa_teclas, notas, fs, sonidos_activos, notas_ac
         tono = generar_nota_sintetizada(frecuencia, duracion, fs);
 
         player = audioplayer(tono, fs);
-        
+        player.UserData = tono;  % Guardar la señal completa para usarla en el release
+
         % Iniciar sonido y almacenar el objeto
         play(player);
         sonidos_activos(tecla) = player;
@@ -124,30 +144,69 @@ function tocar_piano(~, event, mapa_teclas, notas, fs, sonidos_activos, notas_ac
     dibujar_piano(ax, posiciones_teclas, notas_activas);
 end
 
-
 % Función para detener el sonido del piano
-function detener_piano(~, event, sonidos_activos, notas_activas, mapa_teclas, ax, posiciones_teclas)
+function detener_piano(~, event, sonidos_activos, notas_activas, mapa_teclas, notas, ax, posiciones_teclas)
     tecla = event.Key; % Capturar tecla liberada
     
     if isKey(sonidos_activos, tecla)
-        % Detener sonido
-        stop(sonidos_activos(tecla));
+        % Obtener el audioplayer actual
+        player = sonidos_activos(tecla);
+        % Obtener la posición actual en muestras
+        currentSample = get(player, 'CurrentSample');
+        % Detener el audioplayer original
+        stop(player);
         remove(sonidos_activos, tecla);
         
-        % Eliminar nota activa
+        % Extraer la señal original reproducida (almacenada en UserData)
+        originalSignal = get(player, 'UserData');
+        fs = player.SampleRate;
+        
+        % Acceder a los parámetros de release del instrumento
+        global instrumento_sintetizado;
+        if ~isempty(instrumento_sintetizado) && isfield(instrumento_sintetizado, 'envelope')
+            envParams = instrumento_sintetizado.envelope;  % [A, D, S, R]
+            R = envParams(4);
+        else
+            R = 0.5;  % Valor por defecto
+        end
+        
+        % Calcular el número de muestras para la fase de liberación
+        numReleaseSamples = round(R * fs);
+        
+        % Extraer la porción restante de la señal
+        remainingSignal = originalSignal(currentSample:end);
+        % Si la señal restante es más larga que numReleaseSamples, usar solo esa parte
+        if length(remainingSignal) > numReleaseSamples
+            remainingSignal = remainingSignal(1:numReleaseSamples);
+        else
+            numReleaseSamples = length(remainingSignal);
+        end
+        
+        % Crear la envolvente de fade-out (por ejemplo, linealmente de 1 a 0)
+        fadeEnvelope = linspace(1, 0, numReleaseSamples)';
+        fadeOutSignal = remainingSignal .* fadeEnvelope;
+        % (Opcional) Normalizar la señal de release
+        if max(abs(fadeOutSignal)) > 0
+            fadeOutSignal = fadeOutSignal / max(abs(fadeOutSignal));
+        end
+        
+        % Crear un nuevo audioplayer para reproducir la señal modificada de release
+        % (La reproducción se inicia inmediatamente y forma parte de la nota liberada)
+        releasePlayer = audioplayer(fadeOutSignal, fs);
+        play(releasePlayer);
+        
+        % Eliminar la nota de la lista de notas activas
         nota = mapa_teclas(tecla);
         notas_activas(strcmp(notas_activas, nota)) = [];
     end
     
-    % Mostrar todas las notas activas en consola
+    % Actualizar y redibujar el piano
     disp('Notas activas:');
     if isempty(notas_activas)
         disp('Ninguna');
     else
         disp(strjoin(notas_activas, ', '));
     end
-    
-    % Actualizar piano visual con todas las notas activas
     dibujar_piano(ax, posiciones_teclas, notas_activas);
 end
 

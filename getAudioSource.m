@@ -1,8 +1,8 @@
 function [audioData, fs, audioSource, instrumentName] = getAudioSource()
     % Seleccionar fuente de audio
     disp('Seleccione una fuente de audio:');
-    disp('1: Grabar audio con el micrófono.');
     disp('0: Cargar un archivo de audio existente.');
+    disp('1: Grabar audio con el micrófono.');
     option = input('Ingrese su opción (1 o 0): ');
 
     while option ~= 1 && option ~= 0

@@ -10,11 +10,11 @@ function analyzeNote()
         % Modo Grabar: Guardar en la base de datos
         % Obtener la fuente de audio
         [audioData, fs, audioSource, instrumentName] = getAudioSource();
-
-        % Procesar el audio para obtener resultados
+    
+        % Procesar el audio para obtener resultados (armónicos, etc.)
         [freq, fftMagnitude, fundamentalFreq, harmonicIntensities, harmonics] = processAudio(audioData, fs);
-
-        % Mostrar resultados
+    
+        % Mostrar resultados de los armónicos
         fprintf('Frecuencia Fundamental: %.2f Hz\n', fundamentalFreq);
         fprintf('Armónicos y sus intensidades:\n');
         for i = 1:length(harmonics)
@@ -26,12 +26,20 @@ function analyzeNote()
                 fprintf('Armónico %d: %.2f Hz con %.10f%% de intensidad\n', i, harmonics(i), harmonicIntensities(i));
             end
         end
-
-        % Guardar en la base de datos
-        saveToDatabase(instrumentName, fundamentalFreq, harmonics, harmonicIntensities);
-
+    
+        % Extraer parámetros ADSR automáticamente a partir de la señal grabada
+        [A, D, S, R] = extractADSR(audioData, fs);
+        fprintf('Parámetros ADSR extraídos:\n');
+        fprintf('  Ataque (A): %.2f s\n', A);
+        fprintf('  Decaimiento (D): %.2f s\n', D);
+        fprintf('  Sostenimiento (S): %.2f\n', S);
+        fprintf('  Liberación (R): %.2f s\n', R);
+    
+        % Guardar en la base de datos (nota: se debe modificar saveToDatabase.m para incluir ADSR)
+        saveToDatabase(instrumentName, fundamentalFreq, harmonics, harmonicIntensities, [A, D, S, R]);
+    
         % Graficar los resultados al final
-        plotResults(freq, fftMagnitude, harmonicIntensities, harmonics, audioSource);
+        plotResults(freq, fftMagnitude, harmonicIntensities, harmonics, audioSource, [A, D, S, R]);
 
     elseif mode == 1
         % Modo Reconocer: Comparar con la base de datos
@@ -40,9 +48,11 @@ function analyzeNote()
 
         % Procesar el audio para obtener resultados
         [~, ~, ~, harmonicIntensities, ~] = processAudio(audioData, fs);
+        [A, D, S, R] = extractADSR(audioData, fs);
+        currentEnvelope = [A, D, S, R];
 
         % Reconocer instrumento
-        recognizedInstrument = recognizeInstrument(harmonicIntensities, base_datos);
+        recognizedInstrument = recognizeInstrument(harmonicIntensities, currentEnvelope, base_datos);
         if ~isempty(recognizedInstrument)
             fprintf('El instrumento reconocido es: %s\n', recognizedInstrument);
         else

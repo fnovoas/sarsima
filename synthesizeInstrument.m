@@ -30,12 +30,19 @@ function synthesizeInstrument()
     % Crear vector de frecuencias de los armónicos
     harmonics = fundamentalFreq * (1:16);
 
-    % Guardar en la base de datos
-    saveToDatabase(instrumentName, fundamentalFreq, harmonics, harmonicIntensities);
+    % Solicitar los parámetros ADSR al usuario:
+    A = input('Ingrese el tiempo de Ataque (A) en segundos: ');
+    D = input('Ingrese el tiempo de Decaimiento (D) en segundos: ');
+    S = input('Ingrese el nivel de Sostenimiento (S) (entre 0 y 1): ');
+    R = input('Ingrese el tiempo de Liberación (R) en segundos: ');
 
-    % Asignar los valores del instrumento sintetizado a la variable global
+    % Guardar en la base de datos (junto con los armónicos)
+    saveToDatabase(instrumentName, fundamentalFreq, harmonics, harmonicIntensities, [A, D, S, R]);
+
+    % Almacenar en la variable global
     instrumento_sintetizado.fundamentalFreq = fundamentalFreq;
     instrumento_sintetizado.harmonicIntensities = harmonicIntensities;
+    instrumento_sintetizado.envelope = [A, D, S, R];
 
     % Lanzar directamente el piano con el instrumento sintetizado
     disp('Lanzando el piano con el instrumento sintetizado...');

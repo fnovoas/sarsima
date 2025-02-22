@@ -1,4 +1,4 @@
-function saveToDatabase(instrumentName, fundamentalFreq, harmonics, harmonicIntensities)
+function saveToDatabase(instrumentName, fundamentalFreq, harmonics, harmonicIntensities, envelope)
     global base_datos;
 
     % Formatear intensidades a 10 cifras decimales
@@ -12,15 +12,16 @@ function saveToDatabase(instrumentName, fundamentalFreq, harmonics, harmonicInte
     for i = 1:size(base_datos, 1)
         if strcmp(base_datos{i, 1}, instrumentName)
             base_datos{i, 2} = fundamentalFreq; % Actualizar frecuencia fundamental
-            base_datos{i, 3} = harmonicData; % Actualizar datos de armónicos
+            base_datos{i, 3} = harmonicData;      % Actualizar datos de armónicos
+            base_datos{i, 4} = envelope;           % Actualizar datos de envolvente ADSR
             found = true;
             break;
         end
     end
 
     if ~found
-        % Agregar nuevo instrumento
-        base_datos = [base_datos; {instrumentName, fundamentalFreq, harmonicData}];
+        % Agregar nuevo instrumento: [Nombre, Fundamental, Armónicos, Envolvente]
+        base_datos = [base_datos; {instrumentName, fundamentalFreq, harmonicData, envelope}];
     end
 
     % Guardar la base de datos en un archivo

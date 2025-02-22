@@ -1,4 +1,4 @@
-function plotResults(freq, fftMagnitude, harmonicIntensities, harmonics, audioSource)
+function plotResults(freq, fftMagnitude, harmonicIntensities, harmonics, audioSource, envelope)
     % plotResults: Genera gráficos para visualizar el análisis de audio
     %
     % Parámetros:
@@ -7,19 +7,19 @@ function plotResults(freq, fftMagnitude, harmonicIntensities, harmonics, audioSo
     % - harmonicIntensities: Intensidades normalizadas de los armónicos
     % - harmonics: Frecuencias de los armónicos identificados
     % - audioSource: Descripción de la fuente de audio (archivo o grabación)
-
-    % Crear figura con subtítulos
+    % - envelope: Vector [A, D, S, R] con los parámetros de la envolvente
+    
     if isempty(audioSource)
         audioSource = 'Fuente desconocida';
     end
     
-    % Crear la figura
+    % Crear la figura con un título general
     fig = figure;
     sgtitle(['Fuente de audio: ', audioSource]);
 
     % Espectro completo (magnitudes absolutas)
-    ax1 = subplot(3, 1, 1);
-    plot1 = plot(freq, fftMagnitude, 'b');
+    ax1 = subplot(4, 1, 1);
+    plot(freq, fftMagnitude, 'b');
     xlim([20, 20000]);
     xlabel('Frecuencia (Hz)');
     ylabel('Magnitud');
@@ -27,8 +27,8 @@ function plotResults(freq, fftMagnitude, harmonicIntensities, harmonics, audioSo
     grid on;
 
     % Intensidades relativas
-    ax2 = subplot(3, 1, 2);
-    plot2 = plot(freq, (fftMagnitude / max(fftMagnitude)) * 100, 'r');
+    ax2 = subplot(4, 1, 2);
+    plot(freq, (fftMagnitude / max(fftMagnitude)) * 100, 'r');
     xlim([20, 20000]);
     xlabel('Frecuencia (Hz)');
     ylabel('Intensidad (%)');
@@ -36,31 +36,38 @@ function plotResults(freq, fftMagnitude, harmonicIntensities, harmonics, audioSo
     grid on;
 
     % Armónicos identificados
-    ax3 = subplot(3, 1, 3);
-    barPlot = bar(harmonics, harmonicIntensities, 'FaceColor', [0.2 0.6 0.8], 'BarWidth', 0.2);
+    ax3 = subplot(4, 1, 3);
+    bar(harmonics, harmonicIntensities, 'FaceColor', [0.2 0.6 0.8], 'BarWidth', 0.2);
     xlabel('Frecuencia armónica (Hz)');
     ylabel('Intensidad (%)');
     title('Intensidades de los armónicos');
     grid on;
 
-    % Estado inicial: escala lineal
+    % Gráfica de la envolvente ADSR
+    ax4 = subplot(4, 1, 4);
+    bar([1, 2, 3, 4], envelope, 'FaceColor', [0.8 0.4 0.4], 'BarWidth', 0.5);
+    set(ax4, 'XTick', [1 2 3 4], 'XTickLabel', {'A', 'D', 'S', 'R'});
+    xlabel('Componentes de la envolvente');
+    ylabel('Valor');
+    title('Parámetros de la Envolvente ADSR');
+    grid on;
+
+    % Estado inicial: escala lineal para las gráficas de espectro
     isLogScale = false;
 
-    % Agregar botón para alternar la escala del eje y
+    % Agregar botón para alternar la escala del eje y (aplica a ax1 y ax2)
     uicontrol('Style', 'pushbutton', 'String', 'Alternar escala Y', ...
               'Position', [20, 20, 120, 30], ...
               'Callback', @toggleScale);
 
-    % Función de callback para alternar la escala
+    % Función de callback para alternar la escala de los ejes
     function toggleScale(~, ~)
         isLogScale = ~isLogScale; % Alternar estado
         
         if isLogScale
-            % Cambiar a escala logarítmica
             set(ax1, 'YScale', 'log');
             set(ax2, 'YScale', 'log');
         else
-            % Cambiar a escala lineal
             set(ax1, 'YScale', 'linear');
             set(ax2, 'YScale', 'linear');
         end
