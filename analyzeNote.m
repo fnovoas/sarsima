@@ -53,10 +53,17 @@ function analyzeNote()
 
         % Reconocer instrumento
         recognizedInstrument = recognizeInstrument(harmonicIntensities, currentEnvelope, base_datos);
+        % if ~isempty(recognizedInstrument)
+        %     fprintf('El instrumento reconocido es: %s\n', recognizedInstrument);
+        % else
+        %     disp('No se pudo reconocer el instrumento.');
+        % end
+        fig = uifigure(); % Crear una figura UI
         if ~isempty(recognizedInstrument)
-            fprintf('El instrumento reconocido es: %s\n', recognizedInstrument);
+            uialert(fig, sprintf('El instrumento reconocido es: %s', recognizedInstrument), ...
+        'Instrumento Reconocido', 'Icon', 'success');
         else
-            disp('No se pudo reconocer el instrumento.');
+            uialert(fig, 'No se pudo reconocer el instrumento.', 'Error', 'Icon', 'error');
         end
 
     elseif mode == 2
